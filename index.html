@@ -1,8 +1,722 @@
 <!DOCTYPE html>
-<html>
-<head><title>My First App</title></head>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sotong Notes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.1/marked.min.js"></script>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #1a1a1e;
+      --surface: #222226;
+      --surface-hover: #2a2a2f;
+      --border: #333338;
+      --text: #e8e6e1;
+      --text-dim: #8a8880;
+      --accent: #e8a44a;
+      --accent-dim: rgba(232, 164, 74, 0.12);
+      --preview-bg: #faf8f4;
+      --preview-text: #2c2a26;
+      --preview-heading: #1a1814;
+      --preview-link: #c47a20;
+      --preview-code-bg: #f0ece4;
+      --preview-border: #e6e0d4;
+      --preview-blockquote: #6a6560;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'IBM Plex Mono', monospace;
+      overflow: hidden;
+    }
+
+    /* ── Top Bar ── */
+    .topbar {
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .topbar-title {
+      font-family: 'Instrument Serif', serif;
+      font-size: 22px;
+      color: var(--accent);
+      letter-spacing: 0.02em;
+    }
+
+    .topbar-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 6px 14px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn:hover {
+      background: var(--surface-hover);
+      color: var(--text);
+      border-color: var(--text-dim);
+    }
+
+    .btn-accent {
+      background: var(--accent-dim);
+      color: var(--accent);
+      border-color: transparent;
+    }
+
+    .btn-accent:hover {
+      background: var(--accent);
+      color: var(--bg);
+    }
+
+    /* ── Tabs ── */
+    .tabs-bar {
+      height: 40px;
+      display: flex;
+      align-items: center;
+      gap: 0;
+      padding: 0 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+    }
+
+    .tab {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 10px 16px;
+      color: var(--text-dim);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s ease;
+      user-select: none;
+    }
+
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    .tab-count {
+      font-size: 10px;
+      color: var(--text-dim);
+      margin-left: 6px;
+      opacity: 0.6;
+    }
+
+    /* ── Main Layout ── */
+    .main {
+      display: flex;
+      height: calc(100vh - 92px);
+    }
+
+    /* ── Sidebar (Note List) ── */
+    .sidebar {
+      width: 260px;
+      min-width: 260px;
+      border-right: 1px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .sidebar-header {
+      padding: 14px 16px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .sidebar-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-dim);
+    }
+
+    .btn-new {
+      width: 26px;
+      height: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--accent);
+      cursor: pointer;
+      font-size: 16px;
+      transition: all 0.15s ease;
+    }
+
+    .btn-new:hover {
+      background: var(--accent);
+      color: var(--bg);
+      border-color: var(--accent);
+    }
+
+    .note-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 4px 8px;
+    }
+
+    .note-list::-webkit-scrollbar { width: 4px; }
+    .note-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    .note-item {
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.12s ease;
+      margin-bottom: 2px;
+    }
+
+    .note-item:hover { background: var(--surface-hover); }
+    .note-item.active { background: var(--accent-dim); }
+
+    .note-item-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .note-item.active .note-item-title { color: var(--accent); }
+
+    .note-item-date {
+      font-size: 10px;
+      color: var(--text-dim);
+      margin-top: 3px;
+    }
+
+    /* ── Editor & Preview Panes ── */
+    .panes {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    .pane {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .pane + .pane { border-left: 1px solid var(--border); }
+
+    .pane-header {
+      height: 36px;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-dim);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+      flex-shrink: 0;
+    }
+
+    .editor-wrap {
+      flex: 1;
+      overflow: hidden;
+    }
+
+    #editor {
+      width: 100%;
+      height: 100%;
+      resize: none;
+      border: none;
+      outline: none;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 14px;
+      line-height: 1.7;
+      padding: 20px 24px;
+      tab-size: 2;
+    }
+
+    #editor::placeholder { color: var(--text-dim); opacity: 0.5; }
+
+    .preview-wrap {
+      flex: 1;
+      overflow-y: auto;
+      background: var(--preview-bg);
+      padding: 28px 32px;
+    }
+
+    .preview-wrap::-webkit-scrollbar { width: 6px; }
+    .preview-wrap::-webkit-scrollbar-thumb { background: var(--preview-border); border-radius: 4px; }
+
+    /* ── Markdown Preview Styles ── */
+    .preview-wrap h1, .preview-wrap h2, .preview-wrap h3,
+    .preview-wrap h4, .preview-wrap h5, .preview-wrap h6 {
+      font-family: 'Instrument Serif', serif;
+      color: var(--preview-heading);
+      line-height: 1.3;
+      margin-top: 1.6em;
+      margin-bottom: 0.6em;
+    }
+
+    .preview-wrap h1:first-child, .preview-wrap h2:first-child,
+    .preview-wrap h3:first-child { margin-top: 0; }
+
+    .preview-wrap h1 { font-size: 32px; }
+    .preview-wrap h2 { font-size: 24px; border-bottom: 1px solid var(--preview-border); padding-bottom: 6px; }
+    .preview-wrap h3 { font-size: 20px; }
+
+    .preview-wrap p {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 14px;
+      line-height: 1.75;
+      color: var(--preview-text);
+      margin-bottom: 1em;
+    }
+
+    .preview-wrap a { color: var(--preview-link); text-decoration: underline; }
+
+    .preview-wrap strong { font-weight: 600; color: var(--preview-heading); }
+    .preview-wrap em { font-style: italic; }
+
+    .preview-wrap ul, .preview-wrap ol {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 14px;
+      line-height: 1.75;
+      color: var(--preview-text);
+      margin-bottom: 1em;
+      padding-left: 24px;
+    }
+
+    .preview-wrap li { margin-bottom: 4px; }
+
+    .preview-wrap blockquote {
+      border-left: 3px solid var(--accent);
+      padding: 8px 16px;
+      margin: 1em 0;
+      background: var(--accent-dim);
+      border-radius: 0 6px 6px 0;
+    }
+
+    .preview-wrap blockquote p { color: var(--preview-blockquote); margin-bottom: 0; }
+
+    .preview-wrap code {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+      background: var(--preview-code-bg);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: var(--preview-heading);
+    }
+
+    .preview-wrap pre {
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin: 1em 0;
+      overflow-x: auto;
+    }
+
+    .preview-wrap pre code {
+      background: none;
+      padding: 0;
+      color: var(--text);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .preview-wrap hr {
+      border: none;
+      border-top: 1px solid var(--preview-border);
+      margin: 2em 0;
+    }
+
+    .preview-wrap table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1em 0;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+    }
+
+    .preview-wrap th, .preview-wrap td {
+      border: 1px solid var(--preview-border);
+      padding: 8px 12px;
+      text-align: left;
+      color: var(--preview-text);
+    }
+
+    .preview-wrap th {
+      background: var(--preview-code-bg);
+      font-weight: 600;
+      color: var(--preview-heading);
+    }
+
+    .preview-wrap img {
+      max-width: 100%;
+      border-radius: 8px;
+      margin: 1em 0;
+    }
+
+    /* ── Status Bar ── */
+    .statusbar {
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      font-size: 10px;
+      color: var(--text-dim);
+    }
+
+    /* ── Empty state ── */
+    .empty-state {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-dim);
+      font-size: 13px;
+      font-style: italic;
+    }
+
+    /* ── Animations ── */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .note-item { animation: fadeIn 0.2s ease; }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed;
+      bottom: 48px;
+      right: 24px;
+      background: var(--accent);
+      color: var(--bg);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 8px 16px;
+      border-radius: 6px;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: all 0.2s ease;
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .pane:first-child { display: none; }
+    }
+  </style>
+</head>
 <body>
-  <h1>Version 4</h1>
-  <p>This deployed automatically from GitHub.</p>
+
+  <div class="topbar">
+    <div class="topbar-title">Sotong Notes</div>
+    <div class="topbar-actions">
+      <button class="btn" onclick="exportNote()">Export .md</button>
+      <button class="btn btn-accent" onclick="clearAll()">Clear All</button>
+    </div>
+  </div>
+
+  <div class="tabs-bar">
+    <div class="tab active">All Notes <span class="tab-count" id="noteCount">0</span></div>
+  </div>
+
+  <div class="main">
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <span class="sidebar-label">Notes</span>
+        <button class="btn-new" onclick="newNote()" title="New Note">+</button>
+      </div>
+      <div class="note-list" id="noteList"></div>
+    </div>
+
+    <div class="panes">
+      <div class="pane">
+        <div class="pane-header">Markdown</div>
+        <div class="editor-wrap">
+          <textarea id="editor" placeholder="Start writing markdown..." spellcheck="false"></textarea>
+        </div>
+      </div>
+      <div class="pane">
+        <div class="pane-header">Preview</div>
+        <div class="preview-wrap" id="preview"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="statusbar">
+    <span id="statusLeft">Ready</span>
+    <span id="statusRight">0 words</span>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ── State ──
+    let notes = [];
+    let activeId = null;
+
+    const STORAGE_KEY = 'sotong-notes';
+
+    function load() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) notes = JSON.parse(raw);
+      } catch(e) { notes = []; }
+      if (notes.length === 0) {
+        notes.push(makeNote('Welcome to Sotong Notes', WELCOME_MD));
+      }
+      activeId = notes[0].id;
+      render();
+      loadEditor();
+    }
+
+    function save() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+    }
+
+    function makeNote(title, content) {
+      return {
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+        title,
+        content: content || '',
+        updated: Date.now()
+      };
+    }
+
+    // ── Actions ──
+    function newNote() {
+      const n = makeNote('Untitled');
+      notes.unshift(n);
+      activeId = n.id;
+      save();
+      render();
+      loadEditor();
+      document.getElementById('editor').focus();
+    }
+
+    function selectNote(id) {
+      saveCurrentNote();
+      activeId = id;
+      render();
+      loadEditor();
+    }
+
+    function deleteNote(id, e) {
+      e.stopPropagation();
+      notes = notes.filter(n => n.id !== id);
+      if (notes.length === 0) {
+        newNote();
+        return;
+      }
+      if (activeId === id) {
+        activeId = notes[0].id;
+      }
+      save();
+      render();
+      loadEditor();
+      toast('Note deleted');
+    }
+
+    function saveCurrentNote() {
+      const note = notes.find(n => n.id === activeId);
+      if (!note) return;
+      const content = document.getElementById('editor').value;
+      note.content = content;
+      note.title = extractTitle(content);
+      note.updated = Date.now();
+      save();
+    }
+
+    function extractTitle(content) {
+      const firstLine = content.trim().split('\n')[0] || '';
+      const clean = firstLine.replace(/^#+\s*/, '').trim();
+      return clean.slice(0, 60) || 'Untitled';
+    }
+
+    // ── Rendering ──
+    function render() {
+      const list = document.getElementById('noteList');
+      list.innerHTML = notes.map(n => `
+        <div class="note-item ${n.id === activeId ? 'active' : ''}" onclick="selectNote('${n.id}')">
+          <div class="note-item-title">${escHtml(n.title)}</div>
+          <div class="note-item-date">${formatDate(n.updated)}</div>
+        </div>
+      `).join('');
+      document.getElementById('noteCount').textContent = notes.length;
+    }
+
+    function loadEditor() {
+      const note = notes.find(n => n.id === activeId);
+      const editor = document.getElementById('editor');
+      editor.value = note ? note.content : '';
+      updatePreview();
+      updateStatus();
+    }
+
+    function updatePreview() {
+      const raw = document.getElementById('editor').value;
+      document.getElementById('preview').innerHTML = marked.parse(raw);
+    }
+
+    function updateStatus() {
+      const text = document.getElementById('editor').value;
+      const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+      const lines = text.split('\n').length;
+      document.getElementById('statusRight').textContent = `${words} words · ${lines} lines`;
+      document.getElementById('statusLeft').textContent = 'Saved';
+    }
+
+    // ── Export ──
+    function exportNote() {
+      saveCurrentNote();
+      const note = notes.find(n => n.id === activeId);
+      if (!note) return;
+      const blob = new Blob([note.content], { type: 'text/markdown' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = (note.title.replace(/[^a-z0-9]/gi, '-').toLowerCase() || 'note') + '.md';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      toast('Exported ' + a.download);
+    }
+
+    function clearAll() {
+      if (!confirm('Delete all notes? This cannot be undone.')) return;
+      notes = [];
+      localStorage.removeItem(STORAGE_KEY);
+      newNote();
+      toast('All notes cleared');
+    }
+
+    // ── Utils ──
+    function escHtml(s) {
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function formatDate(ts) {
+      const d = new Date(ts);
+      const now = new Date();
+      if (d.toDateString() === now.toDateString()) {
+        return 'Today ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      }
+      return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    }
+
+    function toast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), 2000);
+    }
+
+    // ── Editor Events ──
+    const editor = document.getElementById('editor');
+
+    let saveTimeout;
+    editor.addEventListener('input', () => {
+      updatePreview();
+      clearTimeout(saveTimeout);
+      saveTimeout = setTimeout(() => {
+        saveCurrentNote();
+        render();
+        updateStatus();
+      }, 300);
+    });
+
+    // Tab key support
+    editor.addEventListener('keydown', (e) => {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const start = editor.selectionStart;
+        const end = editor.selectionEnd;
+        editor.value = editor.value.substring(0, start) + '  ' + editor.value.substring(end);
+        editor.selectionStart = editor.selectionEnd = start + 2;
+        editor.dispatchEvent(new Event('input'));
+      }
+    });
+
+    // ── Welcome Content ──
+    const WELCOME_MD = `# Welcome to Sotong Notes
+
+A fast, clean markdown editor that lives in your browser.
+
+## How it works
+
+Type **markdown** on the left, see it rendered on the right — in real time.
+
+### Things you can do
+
+- Create multiple notes using the **+** button
+- Export any note as a \`.md\` file
+- Your notes save automatically to your browser
+
+### Markdown basics
+
+> Blockquotes look like this. Great for callouts.
+
+You can write \`inline code\` or full code blocks:
+
+\`\`\`
+const greeting = "Hello from Sotong Notes";
+console.log(greeting);
+\`\`\`
+
+| Feature | Status |
+|---------|--------|
+| Live preview | ✓ |
+| Auto-save | ✓ |
+| Export | ✓ |
+| Multiple notes | ✓ |
+
+---
+
+*Start writing — delete this note whenever you're ready.*
+`;
+
+    // ── Init ──
+    load();
+  </script>
+
 </body>
 </html>
